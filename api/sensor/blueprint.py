@@ -1,4 +1,4 @@
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, Response
 import datetime
 import pymongo
 
@@ -135,9 +135,32 @@ def get_sensor(sensor_name, timeframe):
     :return: sends back the sensor
     """
     # check return for what timeframe
+    try:
+        help = get_json(request)
+    except NeedJson:
+        pass
 
-    # TODO: FETCH TIME RANGE SET UP INDEX
-    return "WORKING"
+    # get the sensor database
+    db = current_app.config["DATABASE"].Sensor  # type: pymongo.MongoClient
+    # add to the collection
+    sensor = db[sensor_name]
+
+    cur_date = datetime.datetime.today()
+    end_date = cur_date - datetime.timedelta(days=30)
+
+    output = {}
+    counter = 0
+    # iterate i n the result adding it to json
+    for i in sensor.find({ "time": {
+            "$gte": end_date,
+            "$lte": cur_date
+        }
+    }):
+        output[counter] = i
+        counter += 1
+
+
+    return Response(str(output), mimetype='application/json')
 
 
 @api_sensor.route('sensor/<sensor_name>', methods=['POST'])
