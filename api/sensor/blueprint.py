@@ -145,6 +145,7 @@ def get_sensor(sensor_name, timeframe):
     # add to the collection
     sensor = db[sensor_name]
 
+    # TODO: allow user to select time span
     cur_date = datetime.datetime.today()
     end_date = cur_date - datetime.timedelta(days=30)
 
