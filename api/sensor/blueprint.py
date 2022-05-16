@@ -22,6 +22,7 @@ Database Structure
     data is deleted to make more room.
 """
 
+
 class BadJson(Exception):
     pass
 
@@ -30,7 +31,34 @@ class NeedJson(Exception):
     pass
 
 
-def get_json(content_type, request):
+def check_help(Json) -> bool:
+    """
+    A helper method for deciding if the user needs help
+
+    :param Json: the request Json
+    :return: true if the user needs help
+    """
+
+    try:
+        if (Json["help"] == True):
+            return True
+        else:
+            return False
+
+    except KeyError:
+        return False
+
+
+def get_json(request) -> tuple[bool, json]:
+    """
+    Method for handling user request as json and as string
+
+    :param request: the actual request object
+    :return: bool and json back to the user
+    """
+
+    content_type = request.headers.get('Content-Type')
+
     # check what type of content type is it
     if (content_type == 'application/json'):
         try:
@@ -46,7 +74,9 @@ def get_json(content_type, request):
     else:
         raise NeedJson
 
-    return regis_info
+    help = check_help(regis_info)
+
+    return help, regis_info
 
 
 @api_sensor.route('sensor/register', methods=['POST'])
@@ -54,13 +84,11 @@ def sensor_register():
     """
     Get sensors from path
 
-    :param sensor_name: name of the sensor
     :return: sends back the sensor
     """
     # check what type of content type is it
-    content_type = request.headers.get('Content-Type')
     try:
-        regis_info = get_json(content_type, request)
+        help, regis_info = get_json(request)
     except BadJson:
         return "Bad json structure (json format), set { \"help\" : 1 } to request help", 400
     except NeedJson:
@@ -68,7 +96,7 @@ def sensor_register():
 
     # check if help is needed
     try:
-        if (regis_info["help"] == True):
+        if (help == True):
             return """Typical Registration Format...
             {
                 "name"            : # string insert name here
@@ -95,17 +123,21 @@ def sensor_register():
     return f"sucessfully registered {regis_info['name']} as a new sensor", 201
 
 
-@api_sensor.route('sensor/<sensor_name>', methods=['GET'])
-def get_sensor(sensor_name):
+@api_sensor.route('sensor/<sensor_name>', defaults={'timeframe': None}, methods=['GET'])
+@api_sensor.route('sensor/<sensor_name>/<timeframe>', methods=['GET'])
+def get_sensor(sensor_name, timeframe):
     """
-    Get sensors from path
+    Get sensors from path typically return values from the
+    last 30 days
 
     :param sensor_name: name of the sensor
+    :param timeframe: the timeframe of reading request
     :return: sends back the sensor
     """
+    # check return for what timeframe
 
     # TODO: FETCH TIME RANGE SET UP INDEX
-    return sensor_name
+    return "WORKING"
 
 
 @api_sensor.route('sensor/<sensor_name>', methods=['POST'])
@@ -117,9 +149,8 @@ def post_sensor(sensor_name):
     :return: sends back the sensor
     """
 
-    content_type = request.headers.get('Content-Type')
     try:
-        regis_info = get_json(content_type, request)
+        help, regis_info = get_json(request)
     except BadJson:
         return "Bad json structure (json format), set { \"help\" : 1 } to request help", 400
     except NeedJson:
@@ -127,7 +158,7 @@ def post_sensor(sensor_name):
 
     # check if help is needed
     try:
-        if regis_info["help"] == True:
+        if help == True:
             return """Typical Registration Format...
             {
                 "time" : # when the data point was taken
@@ -150,7 +181,8 @@ def post_sensor(sensor_name):
         print("time exist")
     except KeyError:
         print("adding time")
-        regis_info["time"] = datetime.datetime.now()
+        time = datetime.datetime.now()
+        regis_info["time"] = time
 
     print(regis_info["time"])
 
@@ -158,4 +190,4 @@ def post_sensor(sensor_name):
     sensor = db[sensor_name]
     sensor.insert_one(regis_info)
 
-    return sensor_name
+    return f"Posted {regis_info['data']} {regis_info['unit']}, for the time {time} for sensor {sensor_name}"
